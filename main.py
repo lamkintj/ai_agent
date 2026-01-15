@@ -1,6 +1,7 @@
 import argparse
 import os
 from dotenv import load_dotenv
+from functions.call_function import available_functions
 from google import genai
 from google.genai import types
 from prompts import system_prompt
@@ -26,7 +27,8 @@ def main():
         contents=messages,
         config=types.GenerateContentConfig(
             system_instruction=system_prompt,
-            temperature=0),    
+            tools=[available_functions],
+            )    
         )
     if response.usage_metadata != None:
         prompt_tokens = response.usage_metadata.prompt_token_count
@@ -37,8 +39,11 @@ def main():
     if args.verbose == True:
         print(f"User prompt: {args.user_prompt}")
         print(f"Prompt tokens: {prompt_tokens}")
-        print(f"Response tokens: {response_tokens}")    
-    print(response.text)
+        print(f"Response tokens: {response_tokens}")   
+    if response.function_calls == None: 
+        print(response.text)
+    for function_call in response.function_calls:
+        print(f'Calling function: {function_call.name}({function_call.args})')
 
 if __name__ == "__main__":
     main()
