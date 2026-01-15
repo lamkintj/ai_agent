@@ -1,5 +1,6 @@
 import argparse
 import os
+from functions.call_function import call_function
 from dotenv import load_dotenv
 from functions.call_function import available_functions
 from google import genai
@@ -42,8 +43,18 @@ def main():
         print(f"Response tokens: {response_tokens}")   
     if response.function_calls == None: 
         print(response.text)
+    function_results = []
     for function_call in response.function_calls:
-        print(f'Calling function: {function_call.name}({function_call.args})')
+        function_call_result = call_function(function_call)
+        if function_call_result.parts == []:
+            raise Exception("Error: Expected a non-empty object .parts list")
+        if function_call_result.parts[0].function_response == None:
+            raise Exception("Error: Expected a FunctionResponse object in the first item of the .parts list")
+        if function_call_result.parts[0].function_response.response == None:
+            raise Exception("Error: Expected a non-empty response from the function call")
+        function_results.append(function_call_result.parts[0])
+        if args.verbose == True:
+            print(f"-> {function_call_result.parts[0].function_response.response}")
 
 if __name__ == "__main__":
     main()
