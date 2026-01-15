@@ -9,4 +9,6 @@ When a user asks a question or makes a request, make a function call plan. You c
 - Write or overwrite files
 
 All paths you provide should be relative to the working directory. You do not need to specify the working directory in your function calls as it is automatically injected for security reasons.
+
+Your final response should include details about programs or functions if asked, and you should begin your response by addressing the question asked.
 """

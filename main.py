@@ -23,38 +23,50 @@ client = genai.Client(api_key=api_key)
 messages = [types.Content(role="user", parts=[types.Part(text=args.user_prompt)])]
 
 def main():
-    response = client.models.generate_content(
-        model='gemini-2.5-flash',
-        contents=messages,
-        config=types.GenerateContentConfig(
-            system_instruction=system_prompt,
-            tools=[available_functions],
-            )    
-        )
-    if response.usage_metadata != None:
-        prompt_tokens = response.usage_metadata.prompt_token_count
-        response_tokens = response.usage_metadata.candidates_token_count
-    else:
-        raise RuntimeError("API request has failed, please retry.")
+    for _ in range(20):
+       
+        response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=messages,
+            config=types.GenerateContentConfig(
+                system_instruction=system_prompt,
+                tools=[available_functions],
+                )    
+            )
 
-    if args.verbose == True:
-        print(f"User prompt: {args.user_prompt}")
-        print(f"Prompt tokens: {prompt_tokens}")
-        print(f"Response tokens: {response_tokens}")   
-    if response.function_calls == None: 
-        print(response.text)
-    function_results = []
-    for function_call in response.function_calls:
-        function_call_result = call_function(function_call)
-        if function_call_result.parts == []:
-            raise Exception("Error: Expected a non-empty object .parts list")
-        if function_call_result.parts[0].function_response == None:
-            raise Exception("Error: Expected a FunctionResponse object in the first item of the .parts list")
-        if function_call_result.parts[0].function_response.response == None:
-            raise Exception("Error: Expected a non-empty response from the function call")
-        function_results.append(function_call_result.parts[0])
+        if response.candidates:
+            for candidate in response.candidates:
+                messages.append(candidate.content)
+
+        if response.usage_metadata != None:
+            prompt_tokens = response.usage_metadata.prompt_token_count
+            response_tokens = response.usage_metadata.candidates_token_count
+        else:
+            raise RuntimeError("API request has failed, please retry.")
+
         if args.verbose == True:
-            print(f"-> {function_call_result.parts[0].function_response.response}")
+            print(f"User prompt: {args.user_prompt}")
+            print(f"Prompt tokens: {prompt_tokens}")
+            print(f"Response tokens: {response_tokens}")   
+        if response.function_calls == None: 
+            print(f"Final Response:\n===============\n{response.text}")
+            break
 
+        function_results = []
+        for function_call in response.function_calls:
+            function_call_result = call_function(function_call)
+            if function_call_result.parts == []:
+                raise Exception("Error: Expected a non-empty object .parts list")
+            if function_call_result.parts[0].function_response == None:
+                raise Exception("Error: Expected a FunctionResponse object in the first item of the .parts list")
+            if function_call_result.parts[0].function_response.response == None:
+                raise Exception("Error: Expected a non-empty response from the function call")
+            function_results.append(function_call_result.parts[0])
+            messages.append(types.Content(role="user", parts=function_results))
+            if args.verbose == True:
+                print(f"-> {function_call_result.parts[0].function_response.response}")
+    if response.text == None:
+        print("Could not determine a final response after maximum iterations")
+        sys.exit(1)
 if __name__ == "__main__":
     main()
